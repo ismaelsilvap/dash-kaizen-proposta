@@ -6,7 +6,7 @@
 <title>Painel de Propostas — Kaizen</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#F4F5F0;
@@ -32,43 +32,43 @@
   }
   :root:not([data-theme="light"]){
     @media (prefers-color-scheme: dark){
-      --bg:#151A15;
-      --surface:#1D231D;
-      --ink:#EAEDE7;
-      --ink-muted:#A7AF9E;
-      --ink-faint:#77806F;
-      --border:#333B31;
-      --border-strong:#454F40;
+      --bg:#0A0B0A;
+      --surface:#141614;
+      --ink:#ECEEE9;
+      --ink-muted:#9CA396;
+      --ink-faint:#6C7368;
+      --border:#262922;
+      --border-strong:#3A3E34;
       --green:#5FA97F;
-      --green-soft:#213228;
+      --green-soft:#182A20;
       --amber:#D9A63E;
-      --amber-soft:#332A16;
+      --amber-soft:#2B2213;
       --brick:#D97B62;
-      --brick-soft:#332019;
+      --brick-soft:#2B1B15;
       --taupe:#9BA491;
-      --taupe-soft:#262B23;
+      --taupe-soft:#1D201B;
       --teal:#7FA0C0;
-      --teal-soft:#1D2933;
+      --teal-soft:#161D24;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#151A15;
-    --surface:#1D231D;
-    --ink:#EAEDE7;
-    --ink-muted:#A7AF9E;
-    --ink-faint:#77806F;
-    --border:#333B31;
-    --border-strong:#454F40;
+    --bg:#0A0B0A;
+    --surface:#141614;
+    --ink:#ECEEE9;
+    --ink-muted:#9CA396;
+    --ink-faint:#6C7368;
+    --border:#262922;
+    --border-strong:#3A3E34;
     --green:#5FA97F;
-    --green-soft:#213228;
+    --green-soft:#182A20;
     --amber:#D9A63E;
-    --amber-soft:#332A16;
+    --amber-soft:#2B2213;
     --brick:#D97B62;
-    --brick-soft:#332019;
+    --brick-soft:#2B1B15;
     --taupe:#9BA491;
-    --taupe-soft:#262B23;
+    --taupe-soft:#1D201B;
     --teal:#7FA0C0;
-    --teal-soft:#1D2933;
+    --teal-soft:#161D24;
   }
 
   *{box-sizing:border-box;}
@@ -76,7 +76,7 @@
   body{
     background:var(--bg);
     color:var(--ink);
-    font-family:'Work Sans', sans-serif;
+    font-family:'Poppins', sans-serif;
     font-size:14px;
     line-height:1.45;
     -webkit-font-smoothing:antialiased;
@@ -86,7 +86,7 @@
   button, input, select{font-family:inherit;font-size:inherit;color:inherit;}
   :focus-visible{outline:2px solid var(--focus);outline-offset:2px;}
 
-  .num{font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums;}
+  .num{font-family:'Poppins', sans-serif; font-variant-numeric: tabular-nums;}
 
   /* ---------- Header ---------- */
   header.top{
@@ -100,7 +100,7 @@
     flex-wrap:wrap;
   }
   header.top .titles h1{
-    font-family:'Fraunces', serif;
+    font-family:'Poppins', sans-serif;
     font-weight:600;
     font-size:24px;
     margin:0 0 4px;
@@ -147,6 +147,8 @@
     align-self:start;
     max-height:100vh;
     overflow-y:auto;
+    overflow-x:hidden;
+    min-width:0;
   }
   aside.filters h2{
     font-size:11px;
@@ -157,25 +159,27 @@
     font-weight:600;
   }
   aside.filters h2:first-child{margin-top:0;}
-  .field{margin-bottom:4px;}
+  .field{margin-bottom:4px; min-width:0;}
   .field label{display:block; font-size:12.5px; color:var(--ink-muted); margin-bottom:5px;}
   .field input[type="text"],
   .field input[type="date"],
   .field input[type="number"],
   .field select{
     width:100%;
+    min-width:0;
+    max-width:100%;
     padding:7px 9px;
     border:1px solid var(--border-strong);
     border-radius:var(--radius);
     background:var(--bg);
     color:var(--ink);
   }
-  .date-row{display:flex; gap:8px;}
-  .date-row .field{flex:1;}
-  .num-row{display:flex; gap:8px;}
-  .num-row .field{flex:1;}
+  .date-row{display:flex; gap:8px; min-width:0;}
+  .date-row .field{flex:1; min-width:0;}
+  .num-row{display:flex; gap:8px; min-width:0;}
+  .num-row .field{flex:1; min-width:0;}
 
-  .chip-group{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px;}
+  .chip-group{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:6px; min-width:0;}
   .chip{
     border:1px solid var(--border-strong);
     padding:5px 10px;
@@ -233,7 +237,7 @@
   }
   .kpi .label{font-size:11.5px; color:var(--ink-muted); margin-bottom:8px;}
   .kpi .value{
-    font-family:'Fraunces', serif;
+    font-family:'Poppins', sans-serif;
     font-weight:600;
     font-size:26px;
     letter-spacing:-0.01em;
@@ -257,6 +261,8 @@
     border-radius:var(--radius);
     padding:16px 18px 18px;
   }
+  .chart-canvas{height:172px; width:100%;}
+  .chart-canvas svg{display:block; width:100%; height:100%;}
   .panel h3{
     font-size:13px;
     font-weight:600;
@@ -329,7 +335,7 @@
   table.data tbody tr.prow{cursor:pointer;}
   table.data tbody tr.prow:hover{background:var(--bg);}
   table.data tbody tr.prow.open{background:var(--bg);}
-  .num-col{text-align:right; font-family:'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; white-space:nowrap;}
+  .num-col{text-align:right; font-family:'Poppins', sans-serif; font-weight:500; font-variant-numeric: tabular-nums; white-space:nowrap;}
   .chevron{display:inline-block; transition:transform .15s ease; color:var(--ink-faint); margin-right:8px;}
   tr.prow.open .chevron{transform:rotate(90deg);}
 
@@ -383,7 +389,7 @@
   .pager .page-info{font-size:12px; color:var(--ink-muted); min-width:70px; text-align:center;}
 
   .empty-state{padding:50px 20px; text-align:center; color:var(--ink-muted);}
-  .empty-state .big{font-family:'Fraunces', serif; font-size:18px; color:var(--ink); margin-bottom:6px;}
+  .empty-state .big{font-family:'Poppins', sans-serif; font-size:18px; color:var(--ink); margin-bottom:6px;}
 
   /* ---------- Loading / error overlay ---------- */
   #loadState, #errorState{
@@ -406,13 +412,13 @@
   }
   @keyframes spin{to{transform:rotate(360deg);}}
   #loadState p, #errorState p{color:var(--ink-muted); margin:0; max-width:380px; font-size:13px;}
-  #errorState .big{font-family:'Fraunces', serif; font-size:18px; color:var(--ink);}
+  #errorState .big{font-family:'Poppins', sans-serif; font-size:18px; color:var(--ink);}
   #errorState code{
     background:var(--bg);
     border:1px solid var(--border);
     padding:2px 6px;
     border-radius:3px;
-    font-family:'IBM Plex Mono', monospace;
+    font-family:'Poppins', sans-serif;
     font-size:11.5px;
     word-break:break-all;
   }
@@ -466,6 +472,7 @@
       <svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.87M13.5 2v3.5H10" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       Atualizar
     </button>
+    <button class="btn ghost" id="themeToggle" type="button" title="Alternar tema"><span id="themeIcon"></span><span id="themeLabel"></span></button>
     <button class="btn" id="exportBtn" type="button">Exportar CSV</button>
   </div>
 </header>
@@ -620,6 +627,33 @@ const SIT_COLOR = {
   'Rascunho': 'var(--taupe)',
 };
 const SIT_ORDER = ['Concluído','Aguardando','Pendente','Rascunho','Não aprovado'];
+
+// ---------- Tema claro/escuro ----------
+const THEME_KEY = 'kaizen_theme';
+function currentTheme(){
+  const stored = (()=>{ try{ return localStorage.getItem(THEME_KEY); }catch(e){ return null; } })();
+  if(stored==='light' || stored==='dark') return stored;
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+}
+function updateThemeButton(){
+  const t = currentTheme();
+  document.getElementById('themeIcon').textContent = t==='dark' ? '\u2600' : '\u263D';
+  document.getElementById('themeLabel').textContent = t==='dark' ? 'Claro' : 'Escuro';
+}
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t);
+  try{ localStorage.setItem(THEME_KEY, t); }catch(e){}
+  updateThemeButton();
+}
+document.getElementById('themeToggle').addEventListener('click', ()=>{
+  applyTheme(currentTheme()==='dark' ? 'light' : 'dark');
+});
+(function(){
+  const stored = (()=>{ try{ return localStorage.getItem(THEME_KEY); }catch(e){ return null; } })();
+  if(stored==='light' || stored==='dark') document.documentElement.setAttribute('data-theme', stored);
+  updateThemeButton();
+})();
+
 
 function fmtBRL(v){
   return v.toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
@@ -810,8 +844,8 @@ function renderSituacaoChart(filtered){
       <svg width="${size}" height="${size}" viewBox="0 0 120 120">
         <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="var(--border)" stroke-width="${sw}"/>
         ${arcs}
-        <text x="60" y="55" text-anchor="middle" font-family="Fraunces, serif" font-size="20" fill="var(--ink)" font-weight="600">${total}</text>
-        <text x="60" y="72" text-anchor="middle" font-family="Work Sans, sans-serif" font-size="9" fill="var(--ink-faint)">propostas</text>
+        <text x="60" y="55" text-anchor="middle" font-family="Poppins, sans-serif" font-size="20" fill="var(--ink)" font-weight="600">${total}</text>
+        <text x="60" y="72" text-anchor="middle" font-family="Poppins, sans-serif" font-size="9" fill="var(--ink-faint)">propostas</text>
       </svg>
       <div class="legend-row" style="margin-top:0; flex-direction:column; gap:8px;">${legend}</div>
     </div>
@@ -820,6 +854,7 @@ function renderSituacaoChart(filtered){
 
 function renderMesChart(filtered){
   const el = document.getElementById('chartMes');
+  el.className = 'chart-canvas';
   const byMonth = {};
   filtered.forEach(p=>{
     if(!p.data) return;
@@ -830,21 +865,27 @@ function renderMesChart(filtered){
   if(months.length===0){ el.innerHTML = emptyMini('Sem dados para o período selecionado'); return; }
   const max = Math.max(...months.map(m=>byMonth[m]), 1);
 
-  const barW = 34, gap = 14, chartH = 140;
-  const w = months.length*(barW+gap)+gap;
+  // Largura do "slot" de cada mês é sempre fixa (80px) dentro do viewBox;
+  // o container tem altura fixa via CSS (.chart-canvas), e o SVG usa
+  // preserveAspectRatio="none" para nunca esticar verticalmente, mesmo
+  // com um único mês no filtro.
+  const slot = 80, barW = 34, chartH = 140;
+  const minSlots = 4;
+  const totalSlots = Math.max(months.length, minSlots);
+  const w = totalSlots*slot;
   let bars = '';
   months.forEach((m,i)=>{
     const h = (byMonth[m]/max)*chartH;
-    const x = gap + i*(barW+gap);
+    const x = i*slot + (slot-barW)/2;
     const y = chartH - h;
     bars += `
       <rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="2" fill="var(--green)" fill-opacity="0.85">
         <title>${fmtMonth(m)}: ${fmtBRLcents(byMonth[m])}</title>
       </rect>
-      <text x="${x+barW/2}" y="${chartH+16}" text-anchor="middle" font-size="10" fill="var(--ink-faint)" font-family="Work Sans, sans-serif">${fmtMonth(m)}</text>
+      <text x="${x+barW/2}" y="${chartH+16}" text-anchor="middle" font-size="10" fill="var(--ink-faint)" font-family="Poppins, sans-serif">${fmtMonth(m)}</text>
     `;
   });
-  el.innerHTML = `<svg width="100%" viewBox="0 0 ${w} ${chartH+30}" preserveAspectRatio="xMinYMid meet" style="max-width:100%; overflow:visible;">${bars}</svg>`;
+  el.innerHTML = `<svg viewBox="0 0 ${w} ${chartH+30}" preserveAspectRatio="xMidYMid meet">${bars}</svg>`;
 }
 
 function renderHBarChart(elId, entries, colorVar, valueFmt){
@@ -918,6 +959,8 @@ function renderTable(filtered){
           <td>${escapeHtml(it.d)}</td>
           <td>${escapeHtml(it.c||'—')}</td>
           <td class="num-col">${it.q.toLocaleString('pt-BR')}</td>
+          <td class="num-col">${fmtBRLcents(it.pl)}</td>
+          <td class="num-col">${it.di>0 ? it.di.toLocaleString('pt-BR')+'%' : '—'}</td>
           <td class="num-col">${fmtBRLcents(it.pu)}</td>
           <td class="num-col">${fmtBRLcents(it.pt)}</td>
         </tr>
@@ -935,10 +978,11 @@ function renderTable(filtered){
       <tr class="detail-row" style="display:${isOpen?'table-row':'none'}" data-detail-for="${p.id}">
         <td colspan="7">
           <table class="items">
-            <thead><tr><th>Produto</th><th>Código</th><th class="num-col">Qtd.</th><th class="num-col">Preço unit.</th><th class="num-col">Total</th></tr></thead>
+            <thead><tr><th>Produto</th><th>Código</th><th class="num-col">Qtd.</th><th class="num-col">Preço lista</th><th class="num-col">Desconto</th><th class="num-col">Preço unit.</th><th class="num-col">Total</th></tr></thead>
             <tbody>${itemsRows}</tbody>
           </table>
           ${p.frete>0?`<div style="margin-top:8px; font-size:12px; color:var(--ink-muted);">Frete: ${fmtBRLcents(p.frete)}</div>`:''}
+          ${p.obs?`<div style="margin-top:8px; font-size:12px; color:var(--ink-muted); background:var(--amber-soft); border:1px solid var(--amber); border-radius:var(--radius); padding:8px 10px;"><strong style="color:var(--amber);">Observação:</strong> ${escapeHtml(p.obs)}</div>`:''}
         </td>
       </tr>
       `;
@@ -1096,6 +1140,8 @@ function buildProposals(rows){
       d: r['Descrição']||'',
       c: r['Código do produto']||'',
       q: parseNum(r['Quantidade']),
+      pl: round2(parseNum(r['Preço lista'])),
+      di: round2(parseNum(r['Desconto item'])),
       pu: parseNum(r['Preço unitário']),
       pt: parseNum(r['Preço total']),
     }));
@@ -1112,6 +1158,7 @@ function buildProposals(rows){
       uf: (estadoRaw && estadoRaw!=='0') ? estadoRaw : '',
       frete: round2(frete),
       desc: round2(parseNum(first['Desconto proposta'])),
+      obs: (first['Observações internas']||'').trim(),
       valor: round2(valorItens+frete),
       nitens: itens.length,
       itens,
