@@ -698,6 +698,15 @@
   </main>
 </div>
 
+
+<div class="modal-overlay" id="clientModalOverlay">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="clientModalName">
+    <button class="modal-close" id="clientModalClose" type="button" aria-label="Fechar">×</button>
+    <h3 id="clientModalName"></h3>
+    <div class="modal-body" id="clientModalBody"></div>
+  </div>
+</div>
+
 <script>
 // =====================================================================
 // CONFIGURAÇÃO — ÚNICA COISA QUE PRECISA EDITAR SE TROCAR DE PLANILHA
@@ -1422,13 +1431,5 @@ document.getElementById('retryBtn').addEventListener('click', ()=>loadData(true)
 
 loadData(false);
 </script>
-
-<div class="modal-overlay" id="clientModalOverlay">
-  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="clientModalName">
-    <button class="modal-close" id="clientModalClose" type="button" aria-label="Fechar">×</button>
-    <h3 id="clientModalName"></h3>
-    <div class="modal-body" id="clientModalBody"></div>
-  </div>
-</div>
 </body>
 </html>
