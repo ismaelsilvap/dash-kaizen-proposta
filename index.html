@@ -288,6 +288,69 @@
   }
   .mbar{cursor:pointer;}
   .mbar:hover{fill-opacity:1 !important;}
+
+  .client-link{
+    cursor:pointer;
+    text-decoration:underline;
+    text-decoration-color:var(--border-strong);
+    text-underline-offset:2px;
+  }
+  .client-link:hover{color:var(--green); text-decoration-color:var(--green);}
+
+  .modal-overlay{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,0.45);
+    align-items:center;
+    justify-content:center;
+    z-index:100;
+    padding:20px;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    max-width:420px;
+    width:100%;
+    max-height:85vh;
+    overflow-y:auto;
+    padding:24px 24px 20px;
+    position:relative;
+  }
+  .modal-card h3{
+    font-family:'Poppins', sans-serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0 0 16px;
+    padding-right:24px;
+  }
+  .modal-close{
+    position:absolute;
+    top:14px; right:14px;
+    width:26px; height:26px;
+    border:none;
+    background:none;
+    color:var(--ink-faint);
+    font-size:20px;
+    line-height:1;
+    cursor:pointer;
+    border-radius:var(--radius);
+  }
+  .modal-close:hover{color:var(--ink); background:var(--bg);}
+  .modal-row{
+    display:flex;
+    justify-content:space-between;
+    gap:14px;
+    padding:9px 0;
+    border-bottom:1px solid var(--border);
+    font-size:13px;
+  }
+  .modal-row:last-child{border-bottom:none;}
+  .modal-row .k{color:var(--ink-muted); flex:none; width:120px;}
+  .modal-row .v{color:var(--ink); text-align:right; word-break:break-word;}
+  .modal-empty{color:var(--ink-faint); font-size:12.5px; padding:6px 0;}
   .panel h3{
     font-size:13px;
     font-weight:600;
@@ -728,6 +791,7 @@ const state = {
   search:'', dateStart: null, dateEnd: null,
   vendedor:'', uf:'', valorMin:null, valorMax:null,
   sortKey:'data', sortDir:'desc', page:1, pageSize:25,
+  activeMonthFilter: null,
 };
 
 // ---------- Fills selects / date range / state defaults once DATA is loaded ----------
@@ -755,8 +819,8 @@ function initFromData(){
 }
 
 document.getElementById('fSearch').addEventListener('input', e=>{ state.search=e.target.value.trim().toLowerCase(); state.page=1; render(); });
-document.getElementById('fDateStart').addEventListener('change', e=>{ state.dateStart=e.target.value; state.page=1; render(); });
-document.getElementById('fDateEnd').addEventListener('change', e=>{ state.dateEnd=e.target.value; state.page=1; render(); });
+document.getElementById('fDateStart').addEventListener('change', e=>{ state.dateStart=e.target.value; state.activeMonthFilter=null; state.page=1; render(); });
+document.getElementById('fDateEnd').addEventListener('change', e=>{ state.dateEnd=e.target.value; state.activeMonthFilter=null; state.page=1; render(); });
 selVend.addEventListener('change', e=>{ state.vendedor=e.target.value; state.page=1; render(); });
 selUf.addEventListener('change', e=>{ state.uf=e.target.value; state.page=1; render(); });
 document.getElementById('fValorMin').addEventListener('input', e=>{ state.valorMin = e.target.value===''? null : parseFloat(e.target.value); state.page=1; render(); });
@@ -773,6 +837,7 @@ document.getElementById('clearFilters').addEventListener('click', ()=>{
   document.getElementById('fValorMin').value=''; document.getElementById('fValorMax').value='';
   activeSituacoes = new Set(SIT_ORDER);
   [...situacaoChips.children].forEach(c=>c.dataset.active='true');
+  state.activeMonthFilter = null;
   state.page=1;
   render();
 });
@@ -889,11 +954,18 @@ function monthBounds(key){
 }
 
 function filterByMonth(key){
-  const {start, end} = monthBounds(key);
-  state.dateStart = start;
-  state.dateEnd = end;
-  document.getElementById('fDateStart').value = start;
-  document.getElementById('fDateEnd').value = end;
+  if(state.activeMonthFilter === key){
+    state.activeMonthFilter = null;
+    state.dateStart = allDates[0] || null;
+    state.dateEnd = allDates[allDates.length-1] || null;
+  } else {
+    const {start, end} = monthBounds(key);
+    state.activeMonthFilter = key;
+    state.dateStart = start;
+    state.dateEnd = end;
+  }
+  document.getElementById('fDateStart').value = state.dateStart || '';
+  document.getElementById('fDateEnd').value = state.dateEnd || '';
   state.page = 1;
   render();
 }
@@ -925,9 +997,10 @@ function renderMesChart(filtered){
     const h = (byMonth[m]/max)*chartH;
     const x = i*slot + (slot-barW)/2;
     const y = chartH - h;
+    const active = state.activeMonthFilter === m;
     bars += `
-      <rect class="mbar" data-month="${m}" data-value="${byMonth[m]}" x="${x}" y="${y}" width="${barW}" height="${Math.max(h,2)}" rx="2" fill="var(--green)" fill-opacity="0.85"></rect>
-      <text x="${x+barW/2}" y="${chartH+16}" text-anchor="middle" font-size="10" fill="var(--ink-faint)" font-family="Poppins, sans-serif">${fmtMonth(m)}</text>
+      <rect class="mbar" data-month="${m}" data-value="${byMonth[m]}" x="${x}" y="${y}" width="${barW}" height="${Math.max(h,2)}" rx="2" fill="var(--green)" fill-opacity="${active?1:0.85}" stroke="${active?'var(--ink)':'none'}" stroke-width="${active?1.5:0}"></rect>
+      <text x="${x+barW/2}" y="${chartH+16}" text-anchor="middle" font-size="10" fill="${active?'var(--ink)':'var(--ink-faint)'}" font-family="Poppins, sans-serif" font-weight="${active?'600':'400'}">${fmtMonth(m)}</text>
     `;
   });
   el.innerHTML = `<svg viewBox="0 0 ${w} ${chartH+30}" preserveAspectRatio="xMidYMid meet">${bars}</svg>`;
@@ -974,6 +1047,46 @@ function emptyMini(msg){
 function escapeHtml(s){
   return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
+
+// ---------- Modal de dados do cliente ----------
+function formatCpfCnpj(v){
+  const digits = String(v||'').replace(/\D/g,'');
+  if(digits.length===11) return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+  if(digits.length===14) return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
+  return v || '';
+}
+function formatCep(v){
+  const digits = String(v||'').replace(/\D/g,'');
+  return digits.length===8 ? digits.replace(/(\d{5})(\d{3})/, '$1-$2') : (v||'');
+}
+
+function openClientModal(p){
+  document.getElementById('clientModalName').textContent = p.cli || 'Cliente';
+  const fields = [
+    ['CPF/CNPJ', formatCpfCnpj(p.cpf)],
+    ['Telefone', p.tel],
+    ['E-mail', p.email],
+    ['Endereço', p.end],
+    ['Bairro', p.bairro],
+    ['Município/UF', [p.mun, p.uf].filter(Boolean).join(' / ')],
+    ['CEP', formatCep(p.cep)],
+  ].filter(([,v])=>v);
+  const body = document.getElementById('clientModalBody');
+  body.innerHTML = fields.length
+    ? fields.map(([k,v])=>`<div class="modal-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')
+    : '<div class="modal-empty">Nenhum dado de contato cadastrado para esta proposta.</div>';
+  document.getElementById('clientModalOverlay').classList.add('show');
+}
+function closeClientModal(){
+  document.getElementById('clientModalOverlay').classList.remove('show');
+}
+document.getElementById('clientModalClose').addEventListener('click', closeClientModal);
+document.getElementById('clientModalOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'clientModalOverlay') closeClientModal();
+});
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Escape') closeClientModal();
+});
 
 function renderProdutosChart(filtered){
   const byProd = {};
@@ -1036,7 +1149,7 @@ function renderTable(filtered){
       <tr class="prow ${isOpen?'open':''}" data-id="${p.id}">
         <td><span class="chevron">▸</span>#${p.numero}</td>
         <td>${fmtDate(p.data)}</td>
-        <td>${escapeHtml(p.cli)}${p.mun?`<br><span style="color:var(--ink-faint); font-size:11.5px;">${escapeHtml(p.mun)}${p.uf?' · '+p.uf:''}</span>`:''}</td>
+        <td><span class="client-link" data-pid="${p.id}">${escapeHtml(p.cli)}</span>${p.mun?`<br><span style="color:var(--ink-faint); font-size:11.5px;">${escapeHtml(p.mun)}${p.uf?' · '+p.uf:''}</span>`:''}</td>
         <td><span class="badge b-${p.sit.replace(' ','\\ ')}">${p.sit}</span></td>
         <td>${escapeHtml(p.vend)}</td>
         <td class="num-col">${p.nitens}</td>
@@ -1060,6 +1173,14 @@ function renderTable(filtered){
         const id = parseInt(row.dataset.id,10);
         if(openDetailIds.has(id)) openDetailIds.delete(id); else openDetailIds.add(id);
         renderTable(getFiltered());
+      });
+    });
+    tbody.querySelectorAll('.client-link').forEach(link=>{
+      link.addEventListener('click', e=>{
+        e.stopPropagation();
+        const id = parseInt(link.dataset.pid,10);
+        const p = DATA.find(x=>x.id===id);
+        if(p) openClientModal(p);
       });
     });
   }
@@ -1227,6 +1348,12 @@ function buildProposals(rows){
       frete: round2(frete),
       desc: round2(parseNum(first['Desconto proposta'])),
       obs: (first['Observações internas']||'').trim(),
+      cpf: (first['Cpf/Cnpj']||'').trim(),
+      end: (first['Endereço']||'').trim(),
+      bairro: (first['Bairro']||'').trim(),
+      cep: (first['Cep']||'').trim(),
+      email: (first['E-mail']||'').trim(),
+      tel: (first['Telefone']||'').trim(),
       valor: round2(valorItens+frete),
       nitens: itens.length,
       itens,
@@ -1295,5 +1422,13 @@ document.getElementById('retryBtn').addEventListener('click', ()=>loadData(true)
 
 loadData(false);
 </script>
+
+<div class="modal-overlay" id="clientModalOverlay">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="clientModalName">
+    <button class="modal-close" id="clientModalClose" type="button" aria-label="Fechar">×</button>
+    <h3 id="clientModalName"></h3>
+    <div class="modal-body" id="clientModalBody"></div>
+  </div>
+</div>
 </body>
 </html>
