@@ -351,6 +351,31 @@
   .modal-row .k{color:var(--ink-muted); flex:none; width:120px;}
   .modal-row .v{color:var(--ink); text-align:right; word-break:break-word;}
   .modal-empty{color:var(--ink-faint); font-size:12.5px; padding:6px 0;}
+  .modal-row.block{flex-direction:column; gap:4px;}
+  .modal-row.block .k{width:auto;}
+  .modal-row.block .v{text-align:left; white-space:pre-wrap;}
+  .modal-sub{font-size:12px; color:var(--ink-muted); margin:-10px 0 12px; padding-right:24px; word-break:break-word;}
+
+  .occ-link{
+    background:none;
+    border:none;
+    padding:0;
+    font:inherit;
+    font-size:13px;
+    font-weight:500;
+    color:var(--green);
+    cursor:pointer;
+    text-decoration:underline;
+    text-underline-offset:2px;
+    white-space:nowrap;
+  }
+  .occ-link:hover{color:var(--ink);}
+  .occ-none{color:var(--ink-faint); font-size:12px; white-space:nowrap;}
+  .occ-item{padding:10px 0; border-bottom:1px solid var(--border);}
+  .occ-item:last-child{border-bottom:none;}
+  .occ-date{font-size:11.5px; color:var(--ink-faint); margin-bottom:3px;}
+  .occ-text{font-size:13px; color:var(--ink); white-space:pre-wrap; word-break:break-word;}
+  header.top .titles p.occ-stats{margin:2px 0 0; font-size:11.5px; color:var(--ink-faint);}
   .panel h3{
     font-size:13px;
     font-weight:600;
@@ -553,6 +578,7 @@
   <div class="titles">
     <h1>Painel de Propostas</h1>
     <p id="dateRangeLabel">Carregando período…</p>
+    <p class="occ-stats" id="occStats"></p>
   </div>
   <div class="actions">
     <button class="btn ghost filter-toggle" id="filterToggle" type="button">Filtros</button>
@@ -671,6 +697,7 @@
               <th data-key="data">Data</th>
               <th data-key="cli">Cliente</th>
               <th data-key="sit">Situação</th>
+              <th data-key="nocc">Ocorrência</th>
               <th data-key="vend">Vendedor</th>
               <th data-key="nitens" class="num-col">Itens</th>
               <th data-key="valor" class="num-col">Valor</th>
@@ -707,15 +734,30 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="occModalOverlay">
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="occModalName">
+    <button class="modal-close" id="occModalClose" type="button" aria-label="Fechar">×</button>
+    <h3 id="occModalName"></h3>
+    <p class="modal-sub" id="occModalSub"></p>
+    <div class="modal-body" id="occModalBody"></div>
+  </div>
+</div>
+
 <script>
 // =====================================================================
 // CONFIGURAÇÃO — ÚNICA COISA QUE PRECISA EDITAR SE TROCAR DE PLANILHA
-// Cole aqui o link "Publicar na web" (formato CSV) da sua planilha do
-// Google Sheets. Veja as instruções de configuração enviadas junto com
-// este arquivo para saber como gerar esse link.
+// Cole aqui os links "Publicar na web" (formato CSV) de CADA ABA da
+// planilha do Google Sheets:
+//   CSV_URL              -> aba "Geral"
+//   CSV_OCORRENCIAS_URL  -> aba "Ocorrencia/Obs Contato"
 // =====================================================================
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4P1U9ezyVZaZ0PuJKuNNjFLq7GgaEGryKX9fAxYQ1VfNjnD9Ed9arVv-t6hpKdVQ6k-_bOIKIEYWQ/pub?output=csv";
-const CACHE_KEY = "kaizen_propostas_cache_v1";
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4P1U9ezyVZaZ0PuJKuNNjFLq7GgaEGryKX9fAxYQ1VfNjnD9Ed9arVv-t6hpKdVQ6k-_bOIKIEYWQ/pubhtml?gid=1093117148&single=true";
+const CSV_OCORRENCIAS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4P1U9ezyVZaZ0PuJKuNNjFLq7GgaEGryKX9fAxYQ1VfNjnD9Ed9arVv-t6hpKdVQ6k-_bOIKIEYWQ/pubhtml?gid=1112934707&single=true";
+const CACHE_KEY = "kaizen_propostas_cache_v2";
+
+// 'off' = aba de ocorrências não configurada | 'ok' = carregada | 'fail' = falhou ao carregar
+let OCC_STATE = 'off';
+let OCC_STATS_TEXT = '';
 
 let DATA = [];
 
@@ -1059,13 +1101,17 @@ function escapeHtml(s){
 
 // ---------- Modal de dados do cliente ----------
 function formatCpfCnpj(v){
-  const digits = String(v||'').replace(/\D/g,'');
+  let digits = String(v||'').replace(/\D/g,'');
+  // O Google Sheets guarda CPF/CNPJ como número e perde os zeros à esquerda.
+  if(digits.length>=9 && digits.length<=11) digits = digits.padStart(11,'0');
+  else if(digits.length>=12 && digits.length<=14) digits = digits.padStart(14,'0');
   if(digits.length===11) return digits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
   if(digits.length===14) return digits.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
   return v || '';
 }
 function formatCep(v){
-  const digits = String(v||'').replace(/\D/g,'');
+  let digits = String(v||'').replace(/\D/g,'');
+  if(digits.length===7) digits = '0' + digits;
   return digits.length===8 ? digits.replace(/(\d{5})(\d{3})/, '$1-$2') : (v||'');
 }
 
@@ -1079,10 +1125,11 @@ function openClientModal(p){
     ['Bairro', p.bairro],
     ['Município/UF', [p.mun, p.uf].filter(Boolean).join(' / ')],
     ['CEP', formatCep(p.cep)],
+    ['Observação do contato', p.obsContato, true],
   ].filter(([,v])=>v);
   const body = document.getElementById('clientModalBody');
   body.innerHTML = fields.length
-    ? fields.map(([k,v])=>`<div class="modal-row"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')
+    ? fields.map(([k,v,block])=>`<div class="modal-row${block?' block':''}"><span class="k">${k}</span><span class="v">${escapeHtml(v)}</span></div>`).join('')
     : '<div class="modal-empty">Nenhum dado de contato cadastrado para esta proposta.</div>';
   document.getElementById('clientModalOverlay').classList.add('show');
 }
@@ -1094,7 +1141,34 @@ document.getElementById('clientModalOverlay').addEventListener('click', e=>{
   if(e.target.id === 'clientModalOverlay') closeClientModal();
 });
 document.addEventListener('keydown', e=>{
-  if(e.key === 'Escape') closeClientModal();
+  if(e.key === 'Escape'){ closeClientModal(); closeOccModal(); }
+});
+
+// ---------- Modal de ocorrências da proposta ----------
+function fmtDateTime(key){
+  // key no formato 'YYYY-MM-DD HH:MM'
+  const m = String(key||'').match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  return m ? `${m[3]}/${m[2]}/${m[1]} ${m[4]}:${m[5]}` : '';
+}
+function openOccModal(p){
+  document.getElementById('occModalName').textContent = `Ocorrências · Proposta #${p.numero}`;
+  const n = p.occ.length;
+  document.getElementById('occModalSub').textContent =
+    `${p.cli || 'Cliente'} · ${fmtDate(p.data)} · ${n} ocorrência${n===1?'':'s'}`;
+  document.getElementById('occModalBody').innerHTML = p.occ.map(o=>`
+    <div class="occ-item">
+      ${o.dt?`<div class="occ-date">${fmtDateTime(o.dt)}</div>`:''}
+      <div class="occ-text">${escapeHtml(o.txt)}</div>
+    </div>
+  `).join('');
+  document.getElementById('occModalOverlay').classList.add('show');
+}
+function closeOccModal(){
+  document.getElementById('occModalOverlay').classList.remove('show');
+}
+document.getElementById('occModalClose').addEventListener('click', closeOccModal);
+document.getElementById('occModalOverlay').addEventListener('click', e=>{
+  if(e.target.id === 'occModalOverlay') closeOccModal();
 });
 
 function renderProdutosChart(filtered){
@@ -1130,6 +1204,12 @@ function sortData(arr){
   });
 }
 
+function occCell(p){
+  if(p.nocc>0) return `<button type="button" class="occ-link" data-pid="${p.id}">Ver Ocorrência</button>`;
+  if(OCC_STATE==='ok') return '<span class="occ-none">Não tem Ocorrência</span>';
+  return '<span class="occ-none" title="A aba de ocorrências não foi carregada">—</span>';
+}
+
 function renderTable(filtered){
   const sorted = sortData(filtered);
   const totalPages = Math.max(1, Math.ceil(sorted.length/state.pageSize));
@@ -1139,7 +1219,7 @@ function renderTable(filtered){
 
   const tbody = document.getElementById('tableBody');
   if(pageItems.length===0){
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="big">Nenhuma proposta encontrada</div>Ajuste os filtros para ver resultados.</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="big">Nenhuma proposta encontrada</div>Ajuste os filtros para ver resultados.</div></td></tr>`;
   } else {
     tbody.innerHTML = pageItems.map(p=>{
       const isOpen = openDetailIds.has(p.id);
@@ -1160,12 +1240,13 @@ function renderTable(filtered){
         <td>${fmtDate(p.data)}</td>
         <td><span class="client-link" data-pid="${p.id}">${escapeHtml(p.cli)}</span>${p.mun?`<br><span style="color:var(--ink-faint); font-size:11.5px;">${escapeHtml(p.mun)}${p.uf?' · '+p.uf:''}</span>`:''}</td>
         <td><span class="badge b-${p.sit.replace(' ','\\ ')}">${p.sit}</span></td>
+        <td>${occCell(p)}</td>
         <td>${escapeHtml(p.vend)}</td>
         <td class="num-col">${p.nitens}</td>
         <td class="num-col">${fmtBRLcents(p.valor)}</td>
       </tr>
       <tr class="detail-row" style="display:${isOpen?'table-row':'none'}" data-detail-for="${p.id}">
-        <td colspan="7">
+        <td colspan="8">
           <table class="items">
             <thead><tr><th>Produto</th><th>Código</th><th class="num-col">Qtd.</th><th class="num-col">Preço lista</th><th class="num-col">Desconto</th><th class="num-col">Preço unit.</th><th class="num-col">Total</th></tr></thead>
             <tbody>${itemsRows}</tbody>
@@ -1190,6 +1271,14 @@ function renderTable(filtered){
         const id = parseInt(link.dataset.pid,10);
         const p = DATA.find(x=>x.id===id);
         if(p) openClientModal(p);
+      });
+    });
+    tbody.querySelectorAll('.occ-link').forEach(btn=>{
+      btn.addEventListener('click', e=>{
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.pid,10);
+        const p = DATA.find(x=>x.id===id);
+        if(p) openOccModal(p);
       });
     });
   }
@@ -1363,11 +1452,125 @@ function buildProposals(rows){
       cep: (first['Cep']||'').trim(),
       email: (first['E-mail']||'').trim(),
       tel: (first['Telefone']||'').trim(),
+      codc: (first['Código do contato']||'').trim(),
+      ultOc: minuteKey(first['Última ocorrência']),
+      occ: [],
+      nocc: 0,
+      obsContato: '',
       valor: round2(valorItens+frete),
       nitens: itens.length,
       itens,
     };
   });
+}
+
+// ---------------------------------------------------------------------
+// Ocorrências: cruzamento da aba "Ocorrencia/Obs Contato" com a aba "Geral"
+// ---------------------------------------------------------------------
+function normKey(s){
+  return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
+}
+function pad2(n){ return String(n).padStart(2,'0'); }
+// 'DD/MM/AAAA HH:MM[:SS]' -> 'AAAA-MM-DD HH:MM' (comparação por minuto: a aba Geral não traz segundos)
+function minuteKey(s){
+  const m = String(s||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T]+(\d{1,2}):(\d{2})/);
+  return m ? `${m[3]}-${pad2(m[2])}-${pad2(m[1])} ${pad2(m[4])}:${m[5]}` : '';
+}
+
+function attachOcorrencias(props, rows){
+  const stats = {total:0, vinculadas:0, semProposta:0, ambiguas:0};
+  if(!rows.length) return stats;
+
+  const idx = {};
+  Object.keys(rows[0]).forEach(k=>{ idx[normKey(k)] = k; });
+  const pick = names => { for(const n of names){ if(idx[n]) return idx[n]; } return null; };
+  const cNum  = pick(['numero','numero da proposta']);
+  const cData = pick(['data']);
+  const cDtOc = pick(['data - ocorrencias da proposta comercial','data da ocorrencia']);
+  const cTxt  = pick(['ocorrencia']);
+  const cSit  = pick(['situacao']);
+  const cCod  = pick(['codigo']);
+  const cNome = pick(['nome - contato']);
+  const cObs  = pick(['observacoes']);
+  if(!cNum || !cData || !cTxt){
+    throw new Error('A aba de ocorrências não tem as colunas esperadas (Número, Data, Ocorrência).');
+  }
+
+  const byNumData = new Map();
+  props.forEach(p=>{
+    const k = String(p.numero) + '|' + p.data;
+    const arr = byNumData.get(k);
+    if(arr) arr.push(p); else byNumData.set(k, [p]);
+  });
+
+  const obsName = new Map(), obsCode = new Map();
+  const addObs = (map, key, text)=>{
+    if(!key) return;
+    if(!map.has(key)) map.set(key, new Set());
+    if(text) map.get(key).add(text);
+  };
+
+  rows.forEach(r=>{
+    // observação do contato (vale para a linha mesmo sem ocorrência)
+    const ob = cObs ? String(r[cObs]||'').trim() : '';
+    addObs(obsName, cNome ? normKey(r[cNome]) : '', ob);
+    addObs(obsCode, cCod ? normKey(r[cCod]) : '', ob);
+
+    const txt = String(r[cTxt]||'').trim();
+    if(!txt) return;
+    const numero = String(parseInt(r[cNum],10) || '');
+    if(!numero) return;
+    stats.total++;
+
+    const data = parseDateFlexible(r[cData]);
+    const dt = cDtOc ? minuteKey(r[cDtOc]) : '';
+    const sit = cSit ? normKey(r[cSit]) : '';
+
+    let cands = byNumData.get(numero + '|' + data) || [];
+    if(!cands.length){ stats.semProposta++; return; }
+
+    const sameSit = sit ? cands.filter(c=>normKey(c.sit)===sit) : [];
+    if(sameSit.length) cands = sameSit;
+
+    let targets;
+    if(cands.length===1){
+      targets = cands;
+    } else {
+      // várias revisões com mesmo número/data/situação: usa a "Última ocorrência" da aba Geral
+      const exact = cands.filter(c=>c.ultOc && c.ultOc===dt);
+      if(exact.length){ targets = exact; }
+      else { targets = cands; stats.ambiguas++; }
+    }
+    targets.forEach(p=>{
+      if(!p.occ.some(o=>o.dt===dt && o.txt===txt)) p.occ.push({dt, txt});
+    });
+    stats.vinculadas++;
+  });
+
+  props.forEach(p=>{
+    if(p.occ.length){
+      p.occ.sort((a,b)=> a.dt<b.dt ? 1 : a.dt>b.dt ? -1 : 0);
+      p.nocc = p.occ.length;
+    }
+    const nm = normKey(p.cli);
+    const set = obsName.has(nm) ? obsName.get(nm) : obsCode.get(normKey(p.codc));
+    p.obsContato = set ? [...set].join('\n\n') : '';
+  });
+
+  return stats;
+}
+
+function describeOccStats(s){
+  let t = `Ocorrências: ${s.vinculadas.toLocaleString('pt-BR')} de ${s.total.toLocaleString('pt-BR')} vinculadas a propostas`;
+  if(s.semProposta) t += ` · ${s.semProposta.toLocaleString('pt-BR')} sem proposta correspondente`;
+  if(s.ambiguas) t += ` · ${s.ambiguas.toLocaleString('pt-BR')} em mais de uma revisão`;
+  return t;
+}
+function renderOccStats(){
+  const el = document.getElementById('occStats');
+  if(OCC_STATE==='ok') el.textContent = OCC_STATS_TEXT;
+  else if(OCC_STATE==='fail') el.textContent = 'Não foi possível ler a aba de ocorrências — a coluna Ocorrência mostra "—".';
+  else el.textContent = 'Aba de ocorrências não configurada (CSV_OCORRENCIAS_URL).';
 }
 
 function showApp(){
@@ -1390,6 +1593,11 @@ function setLastUpdated(fromCache){
   else { banner.classList.remove('show'); }
 }
 
+function fetchText(url){
+  return fetch(url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now(), {cache:'no-store'})
+    .then(res=>{ if(!res.ok) throw new Error('HTTP ' + res.status); return res.text(); });
+}
+
 function loadData(isRetry){
   const refreshBtn = document.getElementById('refreshBtn');
   refreshBtn.classList.add('spinning');
@@ -1397,15 +1605,36 @@ function loadData(isRetry){
     document.getElementById('errorState').style.display = 'none';
     document.getElementById('loadState').classList.remove('app-hidden');
   }
-  fetch(CSV_URL + (CSV_URL.includes('?') ? '&' : '?') + '_ts=' + Date.now(), {cache:'no-store'})
-    .then(res=>{ if(!res.ok) throw new Error('HTTP ' + res.status); return res.text(); })
-    .then(text=>{
+  const occConfigured = !/^COLE_AQUI/.test(CSV_OCORRENCIAS_URL);
+  const geralP = fetchText(CSV_URL);
+  // A aba de ocorrências é opcional: se falhar, o painel carrega mesmo assim.
+  const occP = occConfigured
+    ? fetchText(CSV_OCORRENCIAS_URL).then(text=>({ok:true, text})).catch(()=>({ok:false}))
+    : Promise.resolve({ok:null});
+  Promise.all([geralP, occP])
+    .then(([text, occRes])=>{
       const rows = parseCSV(text);
       const props = buildProposals(rows);
       if(props.length===0) throw new Error('A planilha foi lida, mas nenhuma proposta foi reconhecida. Confira se os nomes das colunas não foram alterados.');
+
+      OCC_STATE = 'off'; OCC_STATS_TEXT = '';
+      if(occRes.ok===true){
+        try{
+          const stats = attachOcorrencias(props, parseCSV(occRes.text));
+          OCC_STATE = 'ok';
+          OCC_STATS_TEXT = describeOccStats(stats);
+        }catch(e){
+          console.warn('Ocorrências:', e);
+          OCC_STATE = 'fail';
+        }
+      } else if(occRes.ok===false){
+        OCC_STATE = 'fail';
+      }
+
       DATA = props;
-      try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: DATA })); }catch(e){}
+      try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: DATA, occState: OCC_STATE, occStats: OCC_STATS_TEXT })); }catch(e){}
       initFromData();
+      renderOccStats();
       render();
       setLastUpdated(false);
       showApp();
@@ -1415,7 +1644,10 @@ function loadData(isRetry){
       try{ const raw = localStorage.getItem(CACHE_KEY); if(raw) cached = JSON.parse(raw); }catch(e){}
       if(cached && cached.data && cached.data.length){
         DATA = cached.data;
+        OCC_STATE = cached.occState || 'off';
+        OCC_STATS_TEXT = cached.occStats || '';
         initFromData();
+        renderOccStats();
         render();
         setLastUpdated(true);
         showApp();
