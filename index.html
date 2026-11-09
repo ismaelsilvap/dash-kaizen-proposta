@@ -351,6 +351,31 @@
   .modal-row .k{color:var(--ink-muted); flex:none; width:120px;}
   .modal-row .v{color:var(--ink); text-align:right; word-break:break-word;}
   .modal-empty{color:var(--ink-faint); font-size:12.5px; padding:6px 0;}
+
+  /* ---------- Login ---------- */
+  #loginState{display:flex; justify-content:center; align-items:flex-start; padding:56px 16px; min-height:70vh;}
+  .login-card{
+    width:100%; max-width:360px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:26px 24px 22px;
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .login-card h2{font-size:17px; font-weight:600; margin:0 0 4px;}
+  .login-card p{margin:0 0 10px; font-size:12.5px; color:var(--ink-muted);}
+  .login-card label{font-size:12.5px; color:var(--ink-muted); margin-top:8px;}
+  .login-card input{
+    width:100%; min-width:0;
+    padding:9px 10px;
+    border:1px solid var(--border-strong);
+    border-radius:var(--radius);
+    background:var(--bg);
+    color:var(--ink);
+  }
+  .login-err{min-height:20px; font-size:12.5px; color:var(--brick); margin-top:8px;}
+  .login-card .btn{justify-content:center; margin-top:4px; padding:10px 14px;}
+  body.logged-out .actions .btn:not(#themeToggle){display:none !important;}
   .modal-row.block{flex-direction:column; gap:4px;}
   .modal-row.block .k{width:auto;}
   .modal-row.block .v{text-align:left; white-space:pre-wrap;}
@@ -572,7 +597,7 @@
   }
 </style>
 </head>
-<body>
+<body class="logged-out">
 
 <header class="top">
   <div class="titles">
@@ -588,6 +613,7 @@
     </button>
     <button class="btn ghost" id="themeToggle" type="button" title="Alternar tema"><span id="themeIcon"></span><span id="themeLabel"></span></button>
     <button class="btn" id="exportBtn" type="button">Exportar CSV</button>
+    <button class="btn ghost" id="logoutBtn" type="button">Sair</button>
   </div>
 </header>
 
@@ -598,8 +624,21 @@
 
 <div id="errorState">
   <div class="big">Não foi possível carregar os dados</div>
-  <p id="errorMsg">Verifique se a planilha está publicada na web como CSV e se o link em <code>CSV_URL</code> está correto e acessível publicamente.</p>
+  <p id="errorMsg">Não foi possível falar com o servidor. Verifique a conexão e tente novamente.</p>
   <button class="btn primary" id="retryBtn" type="button">Tentar novamente</button>
+</div>
+
+<div id="loginState" class="app-hidden">
+  <form class="login-card" id="loginForm">
+    <h2>Painel de Propostas</h2>
+    <p>Acesso restrito. Entre com o usuário e a senha que você recebeu.</p>
+    <label for="loginUser">Usuário</label>
+    <input id="loginUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
+    <label for="loginPass">Senha</label>
+    <input id="loginPass" name="password" type="password" autocomplete="current-password" required>
+    <div class="login-err" id="loginErr" role="alert"></div>
+    <button class="btn primary" id="loginBtn" type="submit">Entrar</button>
+  </form>
 </div>
 
 <div class="layout app-hidden" id="appRoot">
@@ -651,8 +690,6 @@
   </aside>
 
   <main class="content">
-
-    <div class="stale-banner" id="staleBanner"></div>
 
     <section class="hero" id="kpiRow"></section>
 
@@ -745,19 +782,16 @@
 
 <script>
 // =====================================================================
-// CONFIGURAÇÃO — ÚNICA COISA QUE PRECISA EDITAR SE TROCAR DE PLANILHA
-// Cole aqui os links "Publicar na web" (formato CSV) de CADA ABA da
-// planilha do Google Sheets:
-//   CSV_URL              -> aba "Geral"
-//   CSV_OCORRENCIAS_URL  -> aba "Ocorrencia/Obs Contato"
+// CONFIGURAÇÃO — ÚNICA COISA QUE PRECISA EDITAR
+// Cole aqui o endereço do servidor (Google Apps Script) que termina em /exec.
 // =====================================================================
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4P1U9ezyVZaZ0PuJKuNNjFLq7GgaEGryKX9fAxYQ1VfNjnD9Ed9arVv-t6hpKdVQ6k-_bOIKIEYWQ/pub?gid=1093117148&single=true&output=csv";
-const CSV_OCORRENCIAS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT4P1U9ezyVZaZ0PuJKuNNjFLq7GgaEGryKX9fAxYQ1VfNjnD9Ed9arVv-t6hpKdVQ6k-_bOIKIEYWQ/pub?gid=1112934707&single=true&output=csv";
-const CACHE_KEY = "kaizen_propostas_cache_v2";
+const WEBAPP_URL = "https://script.google.com/macros/s/AKfycbxlAllvDJqQLe1Q32Ip161alpMIwpOydqU2emz54Dxh_5dbnfBOljlN0PVb7cEkYXA4/exec";
+const SESSION_KEY = "kaizen_painel_sessao";   // fica só na aba aberta e some ao fechá-la
 
-// 'off' = aba de ocorrências não configurada | 'ok' = carregada | 'fail' = falhou ao carregar
+// 'off' = sem dados de ocorrência | 'ok' = carregada | 'fail' = o servidor não conseguiu ler a aba
 let OCC_STATE = 'off';
 let OCC_STATS_TEXT = '';
+let SNAPSHOT_EM = '';
 
 let DATA = [];
 
@@ -1347,219 +1381,6 @@ function render(){
 // CARREGAMENTO DOS DADOS — lê o CSV publicado da planilha e converte
 // no mesmo formato usado pelo painel (agrupando linhas por proposta).
 // =====================================================================
-function parseCSV(text){
-  if(text.charCodeAt(0)===0xFEFF) text = text.slice(1);
-  const firstLine = text.split(/\r\n|\n/)[0] || '';
-  const semi = (firstLine.match(/;/g)||[]).length;
-  const comma = (firstLine.match(/,/g)||[]).length;
-  const delim = semi>=comma ? ';' : ',';
-
-  const rows = [];
-  let row = [], field='', inQuotes=false;
-  for(let i=0;i<text.length;i++){
-    const c = text[i];
-    if(inQuotes){
-      if(c==='"'){
-        if(text[i+1]==='"'){ field+='"'; i++; }
-        else inQuotes=false;
-      } else field+=c;
-    } else {
-      if(c==='"') inQuotes=true;
-      else if(c===delim){ row.push(field); field=''; }
-      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
-      else if(c==='\r'){ /* ignora */ }
-      else field+=c;
-    }
-  }
-  if(field.length>0 || row.length>0){ row.push(field); rows.push(row); }
-  while(rows.length && rows[rows.length-1].every(f=>f==='')) rows.pop();
-  if(rows.length===0) return [];
-  const header = rows[0].map(h=>h.trim());
-  return rows.slice(1).map(r=>{
-    const o={};
-    header.forEach((h,idx)=>{ o[h] = r[idx]!==undefined ? r[idx] : ''; });
-    return o;
-  });
-}
-
-function parseNum(s){
-  if(s==null) return 0;
-  s = String(s).trim().replace(/[R$\s]/g,'');
-  if(s==='') return 0;
-  const hasComma = s.includes(',');
-  const hasDot = s.includes('.');
-  if(hasComma && hasDot){
-    if(s.lastIndexOf(',') > s.lastIndexOf('.')) s = s.replace(/\./g,'').replace(',', '.');
-    else s = s.replace(/,/g,'');
-  } else if(hasComma){
-    s = /,(\d{1,2})$/.test(s) ? s.replace(',', '.') : s.replace(/,/g,'');
-  }
-  const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
-}
-
-function parseDateFlexible(s){
-  if(!s) return null;
-  s = String(s).trim();
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(m) return `${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if(m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-  const d = new Date(s);
-  return isNaN(d) ? null : d.toISOString().slice(0,10);
-}
-
-function round2(n){ return Math.round(n*100)/100; }
-
-function buildProposals(rows){
-  const groups = {}, order = [];
-  rows.forEach(r=>{
-    const id = r['ID'];
-    if(id===undefined || id==='') return;
-    if(!groups[id]){ groups[id]=[]; order.push(id); }
-    groups[id].push(r);
-  });
-  return order.map(id=>{
-    const g = groups[id];
-    const first = g[0];
-    const itens = g.map(r=>({
-      d: r['Descrição']||'',
-      c: r['Código do produto']||'',
-      q: parseNum(r['Quantidade']),
-      pl: round2(parseNum(r['Preço lista'])),
-      di: round2(parseNum(r['Desconto item'])),
-      pu: parseNum(r['Preço unitário']),
-      pt: parseNum(r['Preço total']),
-    }));
-    const valorItens = itens.reduce((s,it)=>s+it.pt,0);
-    const frete = parseNum(first['Frete']);
-    const estadoRaw = (first['Estado']||'').trim();
-    return {
-      id: parseInt(id,10) || id,
-      numero: parseInt(first['Número da proposta'],10) || first['Número da proposta'],
-      data: parseDateFlexible(first['Data']),
-      sit: (first['Situação']||'').trim() || 'Pendente',
-      vend: (first['Vendedor']||'').trim() || '—',
-      cli: first['Nome do contato']||'',
-      mun: first['Município']||'',
-      uf: (estadoRaw && estadoRaw!=='0') ? estadoRaw : '',
-      frete: round2(frete),
-      desc: round2(parseNum(first['Desconto proposta'])),
-      obs: (first['Observações internas']||'').trim(),
-      cpf: (first['Cpf/Cnpj']||'').trim(),
-      end: (first['Endereço']||'').trim(),
-      bairro: (first['Bairro']||'').trim(),
-      cep: (first['Cep']||'').trim(),
-      email: (first['E-mail']||'').trim(),
-      tel: (first['Telefone']||'').trim(),
-      codc: (first['Código do contato']||'').trim(),
-      ultOc: minuteKey(first['Última ocorrência']),
-      occ: [],
-      nocc: 0,
-      obsContato: '',
-      valor: round2(valorItens+frete),
-      nitens: itens.length,
-      itens,
-    };
-  });
-}
-
-// ---------------------------------------------------------------------
-// Ocorrências: cruzamento da aba "Ocorrencia/Obs Contato" com a aba "Geral"
-// ---------------------------------------------------------------------
-function normKey(s){
-  return String(s==null?'':s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/\s+/g,' ').trim();
-}
-function pad2(n){ return String(n).padStart(2,'0'); }
-// 'DD/MM/AAAA HH:MM[:SS]' -> 'AAAA-MM-DD HH:MM' (comparação por minuto: a aba Geral não traz segundos)
-function minuteKey(s){
-  const m = String(s||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ T]+(\d{1,2}):(\d{2})/);
-  return m ? `${m[3]}-${pad2(m[2])}-${pad2(m[1])} ${pad2(m[4])}:${m[5]}` : '';
-}
-
-function attachOcorrencias(props, rows){
-  const stats = {total:0, vinculadas:0, semProposta:0, ambiguas:0};
-  if(!rows.length) return stats;
-
-  const idx = {};
-  Object.keys(rows[0]).forEach(k=>{ idx[normKey(k)] = k; });
-  const pick = names => { for(const n of names){ if(idx[n]) return idx[n]; } return null; };
-  const cNum  = pick(['numero','numero da proposta']);
-  const cData = pick(['data']);
-  const cDtOc = pick(['data - ocorrencias da proposta comercial','data da ocorrencia']);
-  const cTxt  = pick(['ocorrencia']);
-  const cSit  = pick(['situacao']);
-  const cCod  = pick(['codigo']);
-  const cNome = pick(['nome - contato']);
-  const cObs  = pick(['observacoes']);
-  if(!cNum || !cData || !cTxt){
-    throw new Error('A aba de ocorrências não tem as colunas esperadas (Número, Data, Ocorrência).');
-  }
-
-  const byNumData = new Map();
-  props.forEach(p=>{
-    const k = String(p.numero) + '|' + p.data;
-    const arr = byNumData.get(k);
-    if(arr) arr.push(p); else byNumData.set(k, [p]);
-  });
-
-  const obsName = new Map(), obsCode = new Map();
-  const addObs = (map, key, text)=>{
-    if(!key) return;
-    if(!map.has(key)) map.set(key, new Set());
-    if(text) map.get(key).add(text);
-  };
-
-  rows.forEach(r=>{
-    // observação do contato (vale para a linha mesmo sem ocorrência)
-    const ob = cObs ? String(r[cObs]||'').trim() : '';
-    addObs(obsName, cNome ? normKey(r[cNome]) : '', ob);
-    addObs(obsCode, cCod ? normKey(r[cCod]) : '', ob);
-
-    const txt = String(r[cTxt]||'').trim();
-    if(!txt) return;
-    const numero = String(parseInt(r[cNum],10) || '');
-    if(!numero) return;
-    stats.total++;
-
-    const data = parseDateFlexible(r[cData]);
-    const dt = cDtOc ? minuteKey(r[cDtOc]) : '';
-    const sit = cSit ? normKey(r[cSit]) : '';
-
-    let cands = byNumData.get(numero + '|' + data) || [];
-    if(!cands.length){ stats.semProposta++; return; }
-
-    const sameSit = sit ? cands.filter(c=>normKey(c.sit)===sit) : [];
-    if(sameSit.length) cands = sameSit;
-
-    let targets;
-    if(cands.length===1){
-      targets = cands;
-    } else {
-      // várias revisões com mesmo número/data/situação: usa a "Última ocorrência" da aba Geral
-      const exact = cands.filter(c=>c.ultOc && c.ultOc===dt);
-      if(exact.length){ targets = exact; }
-      else { targets = cands; stats.ambiguas++; }
-    }
-    targets.forEach(p=>{
-      if(!p.occ.some(o=>o.dt===dt && o.txt===txt)) p.occ.push({dt, txt});
-    });
-    stats.vinculadas++;
-  });
-
-  props.forEach(p=>{
-    if(p.occ.length){
-      p.occ.sort((a,b)=> a.dt<b.dt ? 1 : a.dt>b.dt ? -1 : 0);
-      p.nocc = p.occ.length;
-    }
-    const nm = normKey(p.cli);
-    const set = obsName.has(nm) ? obsName.get(nm) : obsCode.get(normKey(p.codc));
-    p.obsContato = set ? [...set].join('\n\n') : '';
-  });
-
-  return stats;
-}
-
 function describeOccStats(s){
   let t = `Ocorrências: ${s.vinculadas.toLocaleString('pt-BR')} de ${s.total.toLocaleString('pt-BR')} vinculadas a propostas`;
   if(s.semProposta) t += ` · ${s.semProposta.toLocaleString('pt-BR')} sem proposta correspondente`;
@@ -1568,98 +1389,147 @@ function describeOccStats(s){
 }
 function renderOccStats(){
   const el = document.getElementById('occStats');
-  if(OCC_STATE==='ok') el.textContent = OCC_STATS_TEXT;
-  else if(OCC_STATE==='fail') el.textContent = 'Não foi possível ler a aba de ocorrências — a coluna Ocorrência mostra "—".';
-  else el.textContent = 'Aba de ocorrências não configurada (CSV_OCORRENCIAS_URL).';
+  const partes = [];
+  if(OCC_STATE==='ok' && OCC_STATS_TEXT) partes.push(OCC_STATS_TEXT);
+  else if(OCC_STATE==='fail') partes.push('Não foi possível ler a aba de ocorrências — a coluna Ocorrência mostra "—".');
+  if(SNAPSHOT_EM){
+    const d = new Date(SNAPSHOT_EM);
+    if(!isNaN(d)) partes.push('Planilha lida em ' + d.toLocaleString('pt-BR'));
+  }
+  el.textContent = partes.join(' · ');
 }
 
-function showApp(){
+function hideAllStates(){
   document.getElementById('loadState').classList.add('app-hidden');
+  document.getElementById('loginState').classList.add('app-hidden');
   document.getElementById('errorState').style.display = 'none';
+  document.getElementById('appRoot').classList.add('app-hidden');
+}
+function showApp(){
+  hideAllStates();
   document.getElementById('appRoot').classList.remove('app-hidden');
+  document.body.classList.remove('logged-out');
 }
 function showError(msg){
-  document.getElementById('loadState').classList.add('app-hidden');
+  hideAllStates();
   document.getElementById('errorState').style.display = 'flex';
   if(msg) document.getElementById('errorMsg').textContent = msg;
 }
-function setLastUpdated(fromCache){
-  const now = new Date();
-  const label = fromCache
-    ? `Mostrando a última cópia salva neste navegador (${now.toLocaleString('pt-BR')})`
-    : `Dados atualizados em ${now.toLocaleString('pt-BR')}`;
-  const banner = document.getElementById('staleBanner');
-  if(fromCache){ banner.textContent = 'Não foi possível buscar a planilha agora — ' + label + '. Clique em "Atualizar" para tentar de novo.'; banner.classList.add('show'); }
-  else { banner.classList.remove('show'); }
+function showLoading(texto){
+  hideAllStates();
+  document.querySelector('#loadState p').textContent = texto || 'Carregando dados…';
+  document.getElementById('loadState').classList.remove('app-hidden');
+}
+function showLogin(msg){
+  hideAllStates();
+  document.body.classList.add('logged-out');
+  document.getElementById('loginState').classList.remove('app-hidden');
+  document.getElementById('dateRangeLabel').textContent = 'Acesso restrito';
+  document.getElementById('occStats').textContent = '';
+  document.getElementById('loginErr').textContent = msg || '';
+  document.getElementById('loginBtn').disabled = false;
+  const u = document.getElementById('loginUser');
+  (u.value ? document.getElementById('loginPass') : u).focus();
 }
 
-function fetchText(url){
-  return fetch(url + (url.includes('?') ? '&' : '?') + '_ts=' + Date.now(), {cache:'no-store'})
-    .then(res=>{ if(!res.ok) throw new Error('HTTP ' + res.status); return res.text(); });
+// ---------- Sessão e conversa com o servidor ----------
+function getToken(){ try{ return sessionStorage.getItem(SESSION_KEY) || ''; }catch(e){ return ''; } }
+function setToken(t){ try{ if(t) sessionStorage.setItem(SESSION_KEY, t); else sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
+
+function callServer(payload){
+  if(/^COLE_AQUI/.test(WEBAPP_URL)) return Promise.reject(new Error('O endereço do servidor (WEBAPP_URL) ainda não foi configurado no arquivo.'));
+  // Sem cabeçalho Content-Type de propósito: o navegador envia como texto simples, o que
+  // dispensa a checagem prévia (preflight) que o Google Apps Script não responde.
+  return fetch(WEBAPP_URL, { method:'POST', body: JSON.stringify(payload), cache:'no-store' })
+    .then(res=>{ if(!res.ok) throw new Error('HTTP ' + res.status); return res.json(); });
+}
+
+function applySnapshot(snap){
+  const prod = snap.prod || [];
+  const props = snap.props || [];
+  for(let i=0;i<props.length;i++){
+    const p = props[i];
+    p.itens = p.itens.map(a=>{
+      const pr = prod[a[0]] || ['', ''];
+      return { d: pr[0], c: pr[1], q: a[1], pl: a[2], di: a[3], pu: a[4], pt: a[5] };
+    });
+  }
+  DATA = props;
+  OCC_STATE = snap.occState || 'off';
+  OCC_STATS_TEXT = snap.stats ? describeOccStats(snap.stats) : '';
+  SNAPSHOT_EM = snap.geradoEm || '';
+}
+
+function handleResponse(r){
+  if(r && r.ok){
+    if(r.token) setToken(r.token);
+    applySnapshot(r.snapshot);
+    initFromData();
+    renderOccStats();
+    render();
+    showApp();
+    return;
+  }
+  const erro = r && r.erro;
+  if(erro === 'sessao'){ setToken(''); clearScreenData(); showLogin('Sua sessão terminou. Entre novamente.'); return; }
+  if(erro === 'sem_dados'){ showError('O servidor ainda não gerou os dados da planilha. Quem administra o painel precisa executar "atualizarDados" no Apps Script.'); return; }
+  throw new Error(erro || 'resposta inesperada');
 }
 
 function loadData(isRetry){
   const refreshBtn = document.getElementById('refreshBtn');
+  const token = getToken();
+  if(!token){ showLogin(''); return; }
   refreshBtn.classList.add('spinning');
-  if(isRetry){
-    document.getElementById('errorState').style.display = 'none';
-    document.getElementById('loadState').classList.remove('app-hidden');
-  }
-  const occConfigured = !/^COLE_AQUI/.test(CSV_OCORRENCIAS_URL);
-  const geralP = fetchText(CSV_URL);
-  // A aba de ocorrências é opcional: se falhar, o painel carrega mesmo assim.
-  const occP = occConfigured
-    ? fetchText(CSV_OCORRENCIAS_URL).then(text=>({ok:true, text})).catch(()=>({ok:false}))
-    : Promise.resolve({ok:null});
-  Promise.all([geralP, occP])
-    .then(([text, occRes])=>{
-      const rows = parseCSV(text);
-      const props = buildProposals(rows);
-      if(props.length===0) throw new Error('A planilha foi lida, mas nenhuma proposta foi reconhecida. Confira se os nomes das colunas não foram alterados.');
-
-      OCC_STATE = 'off'; OCC_STATS_TEXT = '';
-      if(occRes.ok===true){
-        try{
-          const stats = attachOcorrencias(props, parseCSV(occRes.text));
-          OCC_STATE = 'ok';
-          OCC_STATS_TEXT = describeOccStats(stats);
-        }catch(e){
-          console.warn('Ocorrências:', e);
-          OCC_STATE = 'fail';
-        }
-      } else if(occRes.ok===false){
-        OCC_STATE = 'fail';
-      }
-
-      DATA = props;
-      try{ localStorage.setItem(CACHE_KEY, JSON.stringify({ savedAt: Date.now(), data: DATA, occState: OCC_STATE, occStats: OCC_STATS_TEXT })); }catch(e){}
-      initFromData();
-      renderOccStats();
-      render();
-      setLastUpdated(false);
-      showApp();
-    })
-    .catch(err=>{
-      let cached = null;
-      try{ const raw = localStorage.getItem(CACHE_KEY); if(raw) cached = JSON.parse(raw); }catch(e){}
-      if(cached && cached.data && cached.data.length){
-        DATA = cached.data;
-        OCC_STATE = cached.occState || 'off';
-        OCC_STATS_TEXT = cached.occStats || '';
-        initFromData();
-        renderOccStats();
-        render();
-        setLastUpdated(true);
-        showApp();
-      } else {
-        showError('Não foi possível carregar a planilha (' + err.message + '). Verifique se o link em CSV_URL está publicado e acessível a qualquer pessoa.');
-      }
-    })
+  if(isRetry || !DATA.length) showLoading('Carregando dados…');
+  callServer({ acao:'dados', token })
+    .then(handleResponse)
+    .catch(err=>{ showError('Não foi possível carregar os dados (' + err.message + ').'); })
     .finally(()=>{ refreshBtn.classList.remove('spinning'); });
 }
 
+function clearScreenData(){
+  DATA = [];
+  openDetailIds = new Set();
+  ['tableBody','kpiRow','chartSituacao','chartMes','chartProdutos','chartVendedores','clientModalBody','occModalBody']
+    .forEach(id=>{ const el = document.getElementById(id); if(el) el.innerHTML = ''; });
+  closeClientModal(); closeOccModal();
+}
+
+function logout(){
+  const token = getToken();
+  setToken('');
+  if(token) callServer({ acao:'sair', token }).catch(()=>{});
+  clearScreenData();
+  document.getElementById('loginPass').value = '';
+  showLogin('');
+}
+
+document.getElementById('loginForm').addEventListener('submit', e=>{
+  e.preventDefault();
+  const usuario = document.getElementById('loginUser').value.trim();
+  const senha = document.getElementById('loginPass').value;
+  if(!usuario || !senha) return;
+  document.getElementById('loginBtn').disabled = true;
+  showLoading('Entrando…');
+  callServer({ acao:'login', usuario, senha })
+    .then(r=>{
+      document.getElementById('loginPass').value = '';
+      if(r && r.ok){ handleResponse(r); return; }
+      if(r && r.erro === 'bloqueado') showLogin('Muitas tentativas erradas. Tente de novo em ' + (r.minutos || 15) + ' minutos.');
+      else if(r && r.erro === 'credenciais') showLogin('Usuário ou senha incorretos.');
+      else if(r && r.erro === 'sem_dados') handleResponse(r);
+      else showLogin('Não foi possível entrar. Tente novamente.');
+    })
+    .catch(err=>{ showLogin('Não foi possível falar com o servidor. Verifique a conexão e tente de novo.'); });
+});
+
 document.getElementById('refreshBtn').addEventListener('click', ()=>loadData(false));
 document.getElementById('retryBtn').addEventListener('click', ()=>loadData(true));
+document.getElementById('logoutBtn').addEventListener('click', logout);
+
+// Versões anteriores do painel guardavam uma cópia dos dados no navegador: apaga.
+try{ localStorage.removeItem('kaizen_propostas_cache_v1'); localStorage.removeItem('kaizen_propostas_cache_v2'); }catch(e){}
 
 loadData(false);
 </script>
