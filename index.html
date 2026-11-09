@@ -373,6 +373,14 @@
     background:var(--bg);
     color:var(--ink);
   }
+  .pass-wrap{position:relative;}
+  .pass-wrap input{padding-right:42px;}
+  .eye-btn{position:absolute; right:4px; top:50%; transform:translateY(-50%); width:34px; height:30px; display:flex; align-items:center; justify-content:center; background:none; border:0; border-radius:var(--radius); color:var(--ink-muted); cursor:pointer;}
+  .eye-btn:hover,.eye-btn:focus-visible{color:var(--ink);}
+  .eye-btn svg{width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round;}
+  .eye-btn .eye-off{display:none;}
+  .eye-btn.on .eye-on{display:none;}
+  .eye-btn.on .eye-off{display:block;}
   .login-err{min-height:20px; font-size:12.5px; color:var(--brick); margin-top:8px;}
   .login-card .btn{justify-content:center; margin-top:4px; padding:10px 14px;}
   body.logged-out .actions .btn:not(#themeToggle){display:none !important;}
@@ -635,7 +643,13 @@
     <label for="loginUser">Usuário</label>
     <input id="loginUser" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required>
     <label for="loginPass">Senha</label>
-    <input id="loginPass" name="password" type="password" autocomplete="current-password" required>
+    <div class="pass-wrap">
+      <input id="loginPass" name="password" type="password" autocomplete="current-password" required>
+      <button type="button" class="eye-btn" id="eyeBtn" aria-label="Mostrar senha" title="Mostrar senha">
+        <svg class="eye-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        <svg class="eye-off" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.4 10.4 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.5 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7c1.7 0 3.2-.4 4.5-1"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>
+      </button>
+    </div>
     <div class="login-err" id="loginErr" role="alert"></div>
     <button class="btn primary" id="loginBtn" type="submit">Entrar</button>
   </form>
@@ -1502,8 +1516,21 @@ function logout(){
   if(token) callServer({ acao:'sair', token }).catch(()=>{});
   clearScreenData();
   document.getElementById('loginPass').value = '';
+  setPassVisible(false);
   showLogin('');
 }
+
+function setPassVisible(v){
+  const i = document.getElementById('loginPass'), b = document.getElementById('eyeBtn');
+  i.type = v ? 'text' : 'password';
+  b.classList.toggle('on', v);
+  b.setAttribute('aria-label', v ? 'Ocultar senha' : 'Mostrar senha');
+  b.title = v ? 'Ocultar senha' : 'Mostrar senha';
+}
+document.getElementById('eyeBtn').addEventListener('click', ()=>{
+  setPassVisible(document.getElementById('loginPass').type === 'password');
+  document.getElementById('loginPass').focus();
+});
 
 document.getElementById('loginForm').addEventListener('submit', e=>{
   e.preventDefault();
